@@ -18,9 +18,13 @@ async function auth(req, res, next) {
     try {
         // 查询用户信息并挂载到 req.user
         const user = await db('users').where({ openid }).first()
-        req.user = user || null
+        if (!user) {
+            return res.json({ code: 1002, msg: '用户未注册，请先登录' })
+        }
+        req.user = user
     } catch (err) {
         logger.error('鉴权查询用户失败:', err.message)
+        return res.json({ code: 500, msg: '鉴权服务异常' })
     }
 
     next()
