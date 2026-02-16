@@ -8,48 +8,54 @@ router.get('/', optionalAuth, async (req, res, next) => {
         const db = require('../config/db')
         const { page = 1, pageSize = 20, category, minPrice, maxPrice, mode, region, sort } = req.query
 
-        let query = db('cards')
+        // 1. 构建基础查询（包含 Join 和 过滤条件）
+        const baseQuery = db('cards')
             .join('users', 'cards.user_id', 'users.id')
-            .select(
-                'cards.*',
-                'users.nickname',
-                'users.avatar',
-                'users.school',
-                'users.major',
-                'users.grade',
-                'users.location',
-                'users.edu_verified',
-                'users.ling_code'
-            )
             .whereNull('cards.deleted_at')
             .where('cards.status', 'active')
 
         // 分类筛选
         if (category && category !== 'all') {
-            query = query.whereRaw('JSON_CONTAINS(cards.skills, ?)', [JSON.stringify(category)])
+            baseQuery.whereRaw('JSON_CONTAINS(cards.skills, ?)', [JSON.stringify(category)])
         }
 
         // 价格区间筛选
-        if (minPrice) query = query.where('cards.price_min', '>=', parseInt(minPrice))
-        if (maxPrice) query = query.where('cards.price_max', '<=', parseInt(maxPrice))
+        if (minPrice) baseQuery.where('cards.price_min', '>=', parseInt(minPrice))
+        if (maxPrice) baseQuery.where('cards.price_max', '<=', parseInt(maxPrice))
 
         // 授课模式筛选
-        if (mode === 'online') query = query.where('cards.mode_online', true)
-        if (mode === 'offline') query = query.where('cards.mode_offline', true)
+        if (mode === 'online') baseQuery.where('cards.mode_online', true)
+        if (mode === 'offline') baseQuery.where('cards.mode_offline', true)
 
         // 地区筛选
-        if (region) query = query.where('cards.region', 'like', `%${region}%`)
+        if (region) baseQuery.where('cards.region', 'like', `%${region}%`)
+
+        // 2. 获取总数
+        const totalResult = await baseQuery.clone().count('cards.id as count').first()
+        const total = totalResult ? totalResult.count : 0
+
+        // 3. 构建详细查询并获取列表
+        let listQuery = baseQuery.clone().select(
+            'cards.*',
+            'users.nickname',
+            'users.avatar',
+            'users.school',
+            'users.major',
+            'users.grade',
+            'users.location',
+            'users.edu_verified',
+            'users.ling_code'
+        )
 
         // 排序
-        if (sort === 'newest') query = query.orderBy('cards.created_at', 'desc')
-        else if (sort === 'price_asc') query = query.orderBy('cards.price_min', 'asc')
-        else if (sort === 'price_desc') query = query.orderBy('cards.price_min', 'desc')
-        else query = query.orderBy('cards.updated_at', 'desc') // 默认按更新时间
+        if (sort === 'newest') listQuery = listQuery.orderBy('cards.created_at', 'desc')
+        else if (sort === 'price_asc') listQuery = listQuery.orderBy('cards.price_min', 'asc')
+        else if (sort === 'price_desc') listQuery = listQuery.orderBy('cards.price_min', 'desc')
+        else listQuery = listQuery.orderBy('cards.updated_at', 'desc')
 
         // 分页
         const offset = (parseInt(page) - 1) * parseInt(pageSize)
-        const total = await query.clone().count('cards.id as count').first()
-        const list = await query.limit(parseInt(pageSize)).offset(offset)
+        const list = await listQuery.limit(parseInt(pageSize)).offset(offset)
 
         res.json({
             code: 0,
@@ -57,7 +63,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
             data: {
                 page: parseInt(page),
                 pageSize: parseInt(pageSize),
-                total: total.count,
+                total,
                 list
             }
         })
@@ -106,9 +112,9 @@ router.get('/search', optionalAuth, async (req, res, next) => {
         const offset = (parseInt(page) - 1) * parseInt(pageSize)
         const searchTerm = `%${keyword}%`
 
-        let query = db('cards')
+        // 1. 构建基础查询
+        const baseQuery = db('cards')
             .join('users', 'cards.user_id', 'users.id')
-            .select('cards.*', 'users.nickname', 'users.avatar', 'users.school', 'users.major', 'users.grade', 'users.location', 'users.edu_verified', 'users.ling_code')
             .whereNull('cards.deleted_at')
             .where('cards.status', 'active')
             .where(function () {
@@ -118,15 +124,23 @@ router.get('/search', optionalAuth, async (req, res, next) => {
                     .orWhereRaw('JSON_SEARCH(cards.skills, "one", ?) IS NOT NULL', [keyword])
             })
 
-        const total = await query.clone().count('cards.id as count').first()
-        const list = await query.orderBy('cards.updated_at', 'desc').limit(parseInt(pageSize)).offset(offset)
+        // 2. 获取总数
+        const totalResult = await baseQuery.clone().count('cards.id as count').first()
+        const total = totalResult ? totalResult.count : 0
+
+        // 3. 构建详细查询
+        const list = await baseQuery.clone()
+            .select('cards.*', 'users.nickname', 'users.avatar', 'users.school', 'users.major', 'users.grade', 'users.location', 'users.edu_verified', 'users.ling_code')
+            .orderBy('cards.updated_at', 'desc')
+            .limit(parseInt(pageSize))
+            .offset(offset)
 
         // 异步记录热搜词
         db('search_hot')
             .insert({ keyword, count: 1, updated_at: new Date() })
             .onConflict('keyword')
             .merge({ count: db.raw('count + 1'), updated_at: new Date() })
-            .catch(() => { }) // 静默失败，不影响搜索结果
+            .catch(() => { })
 
         res.json({
             code: 0,
@@ -135,7 +149,7 @@ router.get('/search', optionalAuth, async (req, res, next) => {
                 type: 'keyword',
                 page: parseInt(page),
                 pageSize: parseInt(pageSize),
-                total: total.count,
+                total,
                 list
             }
         })
