@@ -16,6 +16,8 @@ router.get('/', optionalAuth, async (req, res, next) => {
                 'users.avatar',
                 'users.school',
                 'users.major',
+                'users.grade',
+                'users.location',
                 'users.edu_verified',
                 'users.ling_code'
             )
@@ -106,7 +108,7 @@ router.get('/search', optionalAuth, async (req, res, next) => {
 
         let query = db('cards')
             .join('users', 'cards.user_id', 'users.id')
-            .select('cards.*', 'users.nickname', 'users.avatar', 'users.school', 'users.major', 'users.edu_verified', 'users.ling_code')
+            .select('cards.*', 'users.nickname', 'users.avatar', 'users.school', 'users.major', 'users.grade', 'users.location', 'users.edu_verified', 'users.ling_code')
             .whereNull('cards.deleted_at')
             .where('cards.status', 'active')
             .where(function () {
@@ -150,7 +152,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
 
         const card = await db('cards')
             .join('users', 'cards.user_id', 'users.id')
-            .select('cards.*', 'users.nickname', 'users.avatar', 'users.school', 'users.major', 'users.edu_verified', 'users.ling_code', 'users.gender')
+            .select('cards.*', 'users.nickname', 'users.avatar', 'users.school', 'users.major', 'users.grade', 'users.location', 'users.edu_verified', 'users.ling_code', 'users.gender')
             .where('cards.id', id)
             .whereNull('cards.deleted_at')
             .first()
@@ -187,14 +189,15 @@ router.post('/', auth, async (req, res, next) => {
     try {
         const db = require('../config/db')
         const {
-            bio, slogan, skills, price_min, price_max,
+            bio, slogan, skills, tags, price_min, price_max,
             mode_online, mode_offline, region,
-            time_slots, dimensions, teaching_format
+            time_slots, dimensions, teaching_format, service_name
         } = req.body
 
         const cardData = {
             bio, slogan,
             skills: JSON.stringify(skills || []),
+            tags: JSON.stringify(tags || []),
             price_min: price_min || 0,
             price_max: price_max || 0,
             mode_online: mode_online || false,
@@ -203,6 +206,7 @@ router.post('/', auth, async (req, res, next) => {
             time_slots: JSON.stringify(time_slots || []),
             dimensions: JSON.stringify(dimensions || {}),
             teaching_format: teaching_format || '',
+            service_name: service_name || '',
             status: 'active',
             updated_at: new Date()
         }

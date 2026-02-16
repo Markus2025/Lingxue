@@ -31,7 +31,7 @@ router.post('/report', auth, async (req, res, next) => {
 router.post('/feedback', auth, async (req, res, next) => {
     try {
         const db = require('../config/db')
-        const { type, content, images } = req.body
+        const { type, content, images, contact } = req.body
 
         if (!content) {
             return res.json({ code: 1001, msg: '请输入反馈内容' })
@@ -42,6 +42,7 @@ router.post('/feedback', auth, async (req, res, next) => {
             type: type || 'suggestion',
             content,
             images: JSON.stringify(images || []),
+            contact: contact || null,
             status: 'pending',
             created_at: new Date()
         })
@@ -59,8 +60,8 @@ router.get('/search/hot', optionalAuth, async (req, res, next) => {
 
         const list = await db('search_hot')
             .orderBy('count', 'desc')
-            .limit(10)
-            .select('keyword', 'count')
+            .limit(20)
+            .select('keyword', 'count', 'is_hot', 'is_new')
 
         res.json({ code: 0, msg: 'success', data: list })
     } catch (err) {

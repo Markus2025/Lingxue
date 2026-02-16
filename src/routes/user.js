@@ -36,9 +36,14 @@ router.post('/login', auth, async (req, res, next) => {
                 id: user.id,
                 nickname: user.nickname,
                 avatar: user.avatar,
+                school: user.school,
+                major: user.major,
+                grade: user.grade,
+                location: user.location,
                 ling_code: user.ling_code,
                 edu_verified: user.edu_verified,
-                is_new: !user.nickname // 没有昵称说明是新用户
+                real_name_verified: user.real_name_verified,
+                is_new: !user.nickname
             }
         })
     } catch (err) {
@@ -49,17 +54,13 @@ router.post('/login', auth, async (req, res, next) => {
 // GET /api/user/profile - 获取当前用户资料
 router.get('/profile', auth, async (req, res, next) => {
     try {
-        const db = require('../config/db')
-
         if (!req.user) {
             return res.json({ code: 1003, msg: '用户不存在' })
         }
 
-        res.json({
-            code: 0,
-            msg: 'success',
-            data: req.user
-        })
+        // 过滤敏感字段
+        const { phone, wechat_id, ...safeUser } = req.user
+        res.json({ code: 0, msg: 'success', data: safeUser })
     } catch (err) {
         next(err)
     }
@@ -69,24 +70,53 @@ router.get('/profile', auth, async (req, res, next) => {
 router.put('/profile', auth, async (req, res, next) => {
     try {
         const db = require('../config/db')
-        const { nickname, avatar, phone, wechat_id, gender, school, major, grade } = req.body
-
+        const allowedFields = ['nickname', 'avatar', 'phone', 'wechat_id', 'gender', 'school', 'major', 'grade', 'location']
         const updateData = {}
-        if (nickname !== undefined) updateData.nickname = nickname
-        if (avatar !== undefined) updateData.avatar = avatar
-        if (phone !== undefined) updateData.phone = phone
-        if (wechat_id !== undefined) updateData.wechat_id = wechat_id
-        if (gender !== undefined) updateData.gender = gender
-        if (school !== undefined) updateData.school = school
-        if (major !== undefined) updateData.major = major
-        if (grade !== undefined) updateData.grade = grade
+
+        allowedFields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                updateData[field] = req.body[field]
+            }
+        })
 
         updateData.updated_at = new Date()
 
         await db('users').where({ openid: req.openid }).update(updateData)
 
         const user = await db('users').where({ openid: req.openid }).first()
-        res.json({ code: 0, msg: 'success', data: user })
+        const { phone, wechat_id, ...safeUser } = user
+        res.json({ code: 0, msg: 'success', data: safeUser })
+    } catch (err) {
+        next(err)
+    }
+})
+
+// POST /api/user/verify-edu - 教育邮箱认证
+router.post('/verify-edu', auth, async (req, res, next) => {
+    try {
+        const db = require('../config/db')
+        const { email, code } = req.body
+
+        if (!email || !code) {
+            return res.json({ code: 1001, msg: '请填写完整信息' })
+        }
+
+        // 验证邮箱格式（必须是 .edu / .edu.cn 结尾）
+        const eduPattern = /\.(edu|edu\.cn|ac\.cn)$/i
+        if (!eduPattern.test(email)) {
+            return res.json({ code: 1002, msg: '请使用教育邮箱' })
+        }
+
+        // TODO: 对接真实邮箱验证码服务
+        // 目前 MVP 阶段直接通过
+
+        await db('users').where({ openid: req.openid }).update({
+            edu_verified: 1,
+            edu_email: email,
+            updated_at: new Date()
+        })
+
+        res.json({ code: 0, msg: '认证成功' })
     } catch (err) {
         next(err)
     }
