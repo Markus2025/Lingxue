@@ -13,9 +13,7 @@ function errorHandler(err, req, res, next) {
 
     res.status(err.status || 500).json({
         code: err.code || 5000,
-        msg: process.env.NODE_ENV === 'production'
-            ? '服务器内部错误'
-            : err.message
+        msg: err.message || '服务器内部错误'
     })
 }
 
