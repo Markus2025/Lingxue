@@ -14,20 +14,25 @@ router.post('/login', auth, async (req, res, next) => {
         if (!user) {
             // 自动注册新用户
             const lingCode = require('../utils/lingCode')
-            const code = await lingCode.generate(db)
+            const { generateLingCode } = require('../utils/helpers')
+            const ling_code = await generateLingCode()
 
             const [id] = await db('users').insert({
-                openid,
-                unionid,
-                ling_code: code,
-                created_at: new Date()
+                openid: req.openid,
+                unionid: req.unionid,
+                ling_code,
+                nickname: '邻学用户', // 默认昵称
+                avatar: '', // 默认头像
+                created_at: new Date(),
+                last_login_at: new Date()
             })
-
             user = await db('users').where({ id }).first()
+        } else {
+            // 更新登录时间
+            await db('users').where({ id: user.id }).update({
+                last_login_at: new Date()
+            })
         }
-
-        // 更新最后登录时间
-        await db('users').where({ openid }).update({ last_login_at: new Date() })
 
         res.json({
             code: 0,
@@ -42,8 +47,7 @@ router.post('/login', auth, async (req, res, next) => {
                 location: user.location,
                 ling_code: user.ling_code,
                 edu_verified: user.edu_verified,
-                real_name_verified: user.real_name_verified,
-                is_new: !user.nickname
+                real_name_verified: user.real_name_verified
             }
         })
     } catch (err) {
@@ -66,7 +70,7 @@ router.get('/profile', auth, async (req, res, next) => {
     }
 })
 
-// PUT /api/user/profile - 更新用户资料
+// PUT /api/user/profile - 更新个人资料
 router.put('/profile', auth, async (req, res, next) => {
     try {
         const db = require('../config/db')
