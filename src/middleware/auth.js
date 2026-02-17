@@ -47,4 +47,17 @@ async function optionalAuth(req, res, next) {
     next()
 }
 
-module.exports = { auth, optionalAuth }
+module.exports = { auth, optionalAuth, requireHeaders }
+
+/**
+ * 仅检查微信 header 注入 (用于 login 接口，不检查 DB)
+ */
+function requireHeaders(req, res, next) {
+    const openid = req.headers['x-wx-openid']
+    if (!openid) {
+        return res.json({ code: 1002, msg: '未授权：缺少用户身份' })
+    }
+    req.openid = openid
+    req.unionid = req.headers['x-wx-unionid'] || null
+    next()
+}

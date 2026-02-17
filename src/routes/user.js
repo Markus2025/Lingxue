@@ -1,9 +1,9 @@
 const express = require('express')
 const router = express.Router()
-const { auth } = require('../middleware/auth')
+const { auth, requireHeaders } = require('../middleware/auth')
 
 // POST /api/user/login - 微信登录（自动注册）
-router.post('/login', auth, async (req, res, next) => {
+router.post('/login', requireHeaders, async (req, res, next) => {
     try {
         const db = require('../config/db')
         const { openid, unionid } = req
@@ -14,8 +14,7 @@ router.post('/login', auth, async (req, res, next) => {
         if (!user) {
             // 自动注册新用户
             const lingCode = require('../utils/lingCode')
-            const { generateLingCode } = require('../utils/helpers')
-            const ling_code = await generateLingCode()
+            const ling_code = await lingCode.generate(db)
 
             const [id] = await db('users').insert({
                 openid: req.openid,
