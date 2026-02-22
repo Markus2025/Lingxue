@@ -1,21 +1,27 @@
 {
-  "name": "wxcloudrun-express",
+  "name": "lingxue-backend",
   "version": "1.0.0",
-  "description": "微信云托管 express 框架模版",
-  "main": "index.js",
+  "description": "邻学小程序后端服务 - Express + Knex + MySQL",
+  "main": "src/app.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js"
   },
-  "author": "",
-  "license": "Apache-2.0",
+  "author": "LingXue Team",
+  "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.16.4",
-    "morgan": "^1.10.0",
-    "mysql2": "^2.3.2",
-    "sequelize": "^6.8.0"
+    "dotenv": "^16.0.0",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0",
+    "knex": "^3.1.0",
+    "mysql2": "^3.6.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
   },
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=16.0.0"
   }
 }
