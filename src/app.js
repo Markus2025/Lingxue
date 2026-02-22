@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const logger = require('./config/logger')
 const errorHandler = require('./middleware/errorHandler')
+const initDb = require('./utils/initDb')
 
 // 云托管环境变量自动注入，本地开发时读 .env
 if (process.env.NODE_ENV !== 'production') {
@@ -60,8 +61,10 @@ app.use('/api/operation', operationRoutes)
 app.use(errorHandler)
 
 // ========== 启动服务 ==========
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
     logger.info(`邻学后端服务已启动 -> 端口 ${PORT}`)
+    // 自动初始化数据库（幂等，已存在的表不受影响）
+    await initDb()
 })
 
 module.exports = app
