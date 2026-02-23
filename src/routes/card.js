@@ -14,9 +14,12 @@ router.get('/', optionalAuth, async (req, res, next) => {
             .whereNull('cards.deleted_at')
             .where('cards.status', 'active')
 
-        // 分类筛选
+        // 分类筛选 — 匹配 skills 数组中对象的 id 字段
         if (category && category !== 'all') {
-            baseQuery.whereRaw('JSON_CONTAINS(cards.skills, ?)', [JSON.stringify(category)])
+            baseQuery.whereRaw(
+                `JSON_SEARCH(cards.skills, 'one', ?, NULL, '$[*].id') IS NOT NULL`,
+                [category]
+            )
         }
 
         // 价格区间筛选

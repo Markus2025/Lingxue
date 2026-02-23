@@ -94,12 +94,14 @@ const cardRoutes = require('./routes/card')
 const contactRoutes = require('./routes/contact')
 const favoriteRoutes = require('./routes/favorite')
 const operationRoutes = require('./routes/operation')
+const aiRoutes = require('./routes/ai')
 
 app.use('/api/user', userRoutes)
 app.use('/api/cards', cardRoutes)
 app.use('/api/contact', contactRoutes)
 app.use('/api/favorites', favoriteRoutes)
 app.use('/api/operation', operationRoutes)
+app.use('/api/ai', aiRoutes)
 
 // ========== 错误处理 ==========
 app.use(errorHandler)
