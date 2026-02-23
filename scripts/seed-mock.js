@@ -97,12 +97,22 @@ async function runSeeder() {
     console.log('🌱 开始生成 Mock 数据...');
 
     try {
-        console.log('🗑️ 正在清理旧的 Mock 数据...');
-        await db('users').where('openid', 'like', 'mock_user_%').del();
-        console.log('✅ 清旧完毕，开始批量写入新数据...');
+        console.log('🗑️ 正在查找旧的 Mock 数据...');
+        const oldUsers = await db('users').where('openid', 'like', 'mock%').select('id');
+        if (oldUsers.length > 0) {
+            console.log(`🗑️ 找到 ${oldUsers.length} 条旧数据，开始分批清理...`);
+            const oldUserIds = oldUsers.map(u => u.id);
+            for (let i = 0; i < oldUserIds.length; i += 100) {
+                const batchIds = oldUserIds.slice(i, i + 100);
+                await db('cards').whereIn('user_id', batchIds).del();
+                await db('users').whereIn('id', batchIds).del();
+            }
+        }
+        console.log('✅ 清理完毕，开始批量写入新数据...');
 
         const TOTAL = 500;
         const BATCH_SIZE = 50;
+        const currentRunId = Date.now().toString().slice(-6);
 
         for (let batch = 0; batch < TOTAL; batch += BATCH_SIZE) {
             const userObjs = [];
@@ -110,7 +120,7 @@ async function runSeeder() {
 
             for (let i = 1; i <= BATCH_SIZE; i++) {
                 const index = batch + i;
-                const userIdRaw = `mock_user_${String(index).padStart(3, '0')}`;
+                const userIdRaw = `mock_${currentRunId}_${String(index).padStart(3, '0')}`;
                 const gender = randomInt(1, 2);
 
                 const INTERNET_NAMES = [
