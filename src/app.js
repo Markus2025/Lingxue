@@ -74,14 +74,14 @@ app.post('/api/operation/temp-seed', async (req, res) => {
         exec(`node ${scriptPath}`, (error, stdout, stderr) => {
             if (error) {
                 logger.error(`Seed 子进程执行错误: ${error}`);
-                return res.status(500).json({ code: 500, msg: error.message });
+                // 因为已经响应该请求，仅记录错误
+                return;
             }
             logger.info(`Seed 子进程标准输出: ${stdout}`);
-            logger.error(`Seed 子进程标准错误: ${stderr}`);
-            // 不能在这里响应，因为exec是异步的，我们可以先响应"已在后台执行"，或者如果脚本快就等
+            if (stderr) logger.error(`Seed 子进程标准错误: ${stderr}`);
         });
 
-        res.json({ code: 0, msg: '数据库迁移已执行，Seed 脚本已在后台启动！请查看云托管日志。' })
+        res.json({ code: 0, msg: '数据库查询和种子脚本已在后台触发！请查阅云端日志。' })
     } catch (err) {
         logger.error('Seed 路由错误:', err)
         res.status(500).json({ code: 500, msg: err.message })

@@ -48,10 +48,18 @@ router.get('/', optionalAuth, async (req, res, next) => {
         )
 
         // 排序
-        if (sort === 'newest') listQuery = listQuery.orderBy('cards.created_at', 'desc')
-        else if (sort === 'price_asc') listQuery = listQuery.orderBy('cards.price_min', 'asc')
-        else if (sort === 'price_desc') listQuery = listQuery.orderBy('cards.price_min', 'desc')
-        else listQuery = listQuery.orderBy('cards.updated_at', 'desc')
+        if (sort === 'random') {
+            const seedNum = parseInt(req.query.seed) || 1
+            listQuery = listQuery.orderByRaw(`RAND(${seedNum})`)
+        } else if (sort === 'newest') {
+            listQuery = listQuery.orderBy('cards.created_at', 'desc')
+        } else if (sort === 'price_asc') {
+            listQuery = listQuery.orderBy('cards.price_min', 'asc')
+        } else if (sort === 'price_desc') {
+            listQuery = listQuery.orderBy('cards.price_min', 'desc')
+        } else {
+            listQuery = listQuery.orderBy('cards.updated_at', 'desc')
+        }
 
         // 分页
         const offset = (parseInt(page) - 1) * parseInt(pageSize)

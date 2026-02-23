@@ -96,92 +96,133 @@ const generateRandomId = () => Math.random().toString(36).substring(2, 8).toUppe
 async function runSeeder() {
     console.log('🌱 开始生成 Mock 数据...');
 
-    // 生成 500 次
-    for (let i = 1; i <= 500; i++) {
-        const isDetailed = Math.random() < 0.6; // 60% 充实卡片，40%简略
+    try {
+        console.log('🗑️ 正在清理旧的 Mock 数据...');
+        await db('users').where('openid', 'like', 'mock_user_%').del();
+        console.log('✅ 清旧完毕，开始批量写入新数据...');
 
-        // 1. 生成用户数据
-        const userIdRaw = `mock_user_${String(i).padStart(3, '0')}`;
-        const gender = randomInt(1, 2);
+        const TOTAL = 500;
+        const BATCH_SIZE = 50;
 
-        // 随机中文名生成逻辑简化版
-        const surnames = '赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜';
-        const names = '伟芳娜秀英敏静丽强磊军洋勇艳杰娟涛明超秀兰霞平刚桂英';
-        const nickname = randomEl(surnames.split('')) + randomEl(names.split('')) + (Math.random() > 0.5 ? randomEl(names.split('')) : '');
+        for (let batch = 0; batch < TOTAL; batch += BATCH_SIZE) {
+            const userObjs = [];
+            const openIds = [];
 
-        const userObj = {
-            openid: userIdRaw,
-            nickname: nickname,
-            // Pravatar 提供真人占位头像
-            avatar: `https://i.pravatar.cc/300?u=${userIdRaw}`,
-            gender: gender,
-            // **关键：清空真实的联系方式，用来触发“通知补充”闭环**
-            phone: null,
-            wechat_id: null,
-            school: randomEl(UNIVERSITIES),
-            major: randomEl(MAJORS),
-            grade: randomEl(GRADES),
-            location: randomEl(CITIES),
-            ling_code: generateRandomId(),
-            edu_verified: Math.random() < 0.3 ? 1 : 0,
-            status: 'active',
-            created_at: new Date()
-        };
+            for (let i = 1; i <= BATCH_SIZE; i++) {
+                const index = batch + i;
+                const userIdRaw = `mock_user_${String(index).padStart(3, '0')}`;
+                const gender = randomInt(1, 2);
 
-        const [userId] = await db('users').insert(userObj);
+                const INTERNET_NAMES = [
+                    '一只小废柴', '起名字好难', '学习使我快乐', '退堂鼓表演艺术家', '熬夜秃头小宝贝',
+                    '早起毁一天', '我不吃香菜', '快乐的小胖纸', '减肥失败的一天', '努力搬砖的汪',
+                    '没有感情的刷题机器', '在知识的海洋里溺水', '想要一杯奶茶', '今天也要加油鸭', '不想起床',
+                    '薛定谔的猫', '光合作用', '地球原住民', '普通市民小X', '在逃公主',
+                    '宇宙第一可爱', '是你的小甜甜呀', '有点酷的女孩', '冷漠脸', '别说话吻我',
+                    '暴走萝莉', '佛系青年', '随遇而安', '心如止水', '看透一切',
+                    '代码敲击者', 'BUG制造机', 'CV工程师', '脱发主力军', '秃头披风侠',
+                    '深夜EMO选手', '不瘦十斤不换头像', '这辈子都不可能早睡', '明天再说', '随便吧'
+                ];
 
-        // 2. 生成卡片数据
-        const priceBase = randomInt(50, 300);
+                const PROFESSIONS = ['学姐', '学长', '老师', '同学', '教练', '大大', '大佬'];
+                const surnames = '赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜';
 
-        const cardObj = {
-            user_id: userId,
-            bio: isDetailed ? randomEl(BIOS) : (Math.random() > 0.5 ? '欢迎联系我！' : null),
-            slogan: isDetailed ? randomEl(SLOGANS) : null,
-            skills: JSON.stringify(randomEl(SKILL_POOLS)),
-            tags: JSON.stringify(randomSample(TAGS_POOL, randomInt(2, 5))),
-            price_min: isDetailed ? priceBase : 0,
-            price_max: isDetailed ? priceBase + 50 : 0,
-            mode_online: Math.random() > 0.5 ? 1 : 0,
-            mode_offline: Math.random() > 0.5 ? 1 : 0,
-            region: userObj.location,
+                let nickname = '';
+                const nameType = Math.random();
 
-            // 组装“三步走”所需过滤和标签数据
-            contact_questions: JSON.stringify(randomSample(QA_POOL, randomInt(1, 3))),
-            pre_answered_tags: JSON.stringify(randomSample(PRE_TAGS_POOL, randomInt(1, 4))),
+                if (nameType < 0.6) {
+                    nickname = randomEl(INTERNET_NAMES);
+                    if (Math.random() > 0.5) {
+                        const emojis = ['✨', '🔥', '🐾', '🌸', '🍉', '👻', '👾', '🚀', '💡', '🎵'];
+                        nickname += ' ' + randomEl(emojis);
+                    }
+                } else if (nameType < 0.85) {
+                    nickname = randomEl(surnames.split('')) + randomEl(PROFESSIONS);
+                } else {
+                    const names = '伟芳娜秀英敏静丽强磊军洋勇艳杰娟涛明超秀兰霞平刚桂英';
+                    nickname = randomEl(surnames.split('')) + randomEl(names.split('')) + (Math.random() > 0.5 ? randomEl(names.split('')) : '');
+                }
 
-            // 初始化浏览等数据，制造活跃度
-            view_count: randomInt(10, 500),
-            contact_count: randomInt(0, 50),
-            favorite_count: randomInt(0, 100),
-            status: 'active',
-            created_at: new Date()
-        };
+                userObjs.push({
+                    openid: userIdRaw,
+                    nickname: nickname,
+                    avatar: `https://i.pravatar.cc/300?u=${userIdRaw}`,
+                    gender: gender,
+                    phone: null,
+                    wechat_id: null,
+                    school: randomEl(UNIVERSITIES),
+                    major: randomEl(MAJORS),
+                    grade: randomEl(GRADES),
+                    location: randomEl(CITIES),
+                    ling_code: generateRandomId(),
+                    edu_verified: Math.random() < 0.3 ? 1 : 0,
+                    status: 'active',
+                    created_at: new Date()
+                });
+                openIds.push(userIdRaw);
+            }
 
-        // 处理详略差别
-        if (isDetailed) {
-            const dims = randomSample(DIMENSIONS_NAMES, 5).map(name => ({ name, value: randomInt(4, 5) }));
-            cardObj.dimensions = JSON.stringify(dims);
-            cardObj.time_slots = JSON.stringify([
-                { dayIndex: randomInt(4, 6), startTime: '09:00', endTime: '12:00' },
-                { dayIndex: randomInt(4, 6), startTime: '14:00', endTime: '18:00' }
-            ]);
-            cardObj.teaching_format = '一对一辅导';
-            cardObj.service_name = '精品陪练/辅导';
-        } else {
-            cardObj.dimensions = JSON.stringify([]);
-            cardObj.time_slots = JSON.stringify([]);
-            cardObj.teaching_format = '';
-            cardObj.service_name = '';
+            // 批量插入用户
+            await db('users').insert(userObjs);
+
+            // 获取刚插入的用户的自增 ID
+            const insertedUsers = await db('users').whereIn('openid', openIds).select('id', 'location');
+
+            const cardObjs = [];
+            for (let user of insertedUsers) {
+                const isDetailed = Math.random() < 0.6;
+                const priceBase = randomInt(50, 300);
+
+                const cardObj = {
+                    user_id: user.id,
+                    bio: isDetailed ? randomEl(BIOS) : (Math.random() > 0.5 ? '欢迎联系我！' : null),
+                    slogan: isDetailed ? randomEl(SLOGANS) : null,
+                    skills: JSON.stringify(randomEl(SKILL_POOLS)),
+                    tags: JSON.stringify(randomSample(TAGS_POOL, randomInt(2, 5))),
+                    price_min: isDetailed ? priceBase : 0,
+                    price_max: isDetailed ? priceBase + 50 : 0,
+                    mode_online: Math.random() > 0.5 ? 1 : 0,
+                    mode_offline: Math.random() > 0.5 ? 1 : 0,
+                    region: user.location,
+                    contact_questions: JSON.stringify(randomSample(QA_POOL, randomInt(1, 3))),
+                    pre_answered_tags: JSON.stringify(randomSample(PRE_TAGS_POOL, randomInt(1, 4))),
+                    view_count: randomInt(10, 500),
+                    contact_count: randomInt(0, 50),
+                    favorite_count: randomInt(0, 100),
+                    status: 'active',
+                    created_at: new Date()
+                };
+
+                if (isDetailed) {
+                    const dims = randomSample(DIMENSIONS_NAMES, 5).map(name => ({ name, value: randomInt(4, 5) }));
+                    cardObj.dimensions = JSON.stringify(dims);
+                    cardObj.time_slots = JSON.stringify([
+                        { dayIndex: randomInt(4, 6), startTime: '09:00', endTime: '12:00' },
+                        { dayIndex: randomInt(4, 6), startTime: '14:00', endTime: '18:00' }
+                    ]);
+                    cardObj.teaching_format = '一对一辅导';
+                    cardObj.service_name = '精品陪练/辅导';
+                } else {
+                    cardObj.dimensions = JSON.stringify([]);
+                    cardObj.time_slots = JSON.stringify([]);
+                    cardObj.teaching_format = '';
+                    cardObj.service_name = '';
+                }
+
+                if (!cardObj.mode_online && !cardObj.mode_offline) cardObj.mode_online = 1;
+
+                cardObjs.push(cardObj);
+            }
+
+            // 批量插入卡片
+            if (cardObjs.length > 0) {
+                await db('cards').insert(cardObjs);
+            }
+            console.log(`...已生成 ${batch + BATCH_SIZE} 条记录`);
         }
-
-        // 保证线上线下至少含一个
-        if (!cardObj.mode_online && !cardObj.mode_offline) cardObj.mode_online = 1;
-
-        await db('cards').insert(cardObj);
-
-        if (i % 50 === 0) {
-            console.log(`...已生成 ${i} 条记录`);
-        }
+    } catch (e) {
+        console.error('❌ 数据清理或生成过程中报错：', e);
+        process.exit(1);
     }
 
     console.log('✅ 500条Mock数据生成完毕！所有用户的 wechat_id 均为空，随时可演示『通知Ta补充』流程。');

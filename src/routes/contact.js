@@ -88,4 +88,86 @@ router.get('/history', auth, async (req, res, next) => {
     }
 })
 
+// POST /api/contact/remind/:cardId - 发送补充联系方式提醒
+router.post('/remind/:cardId', auth, async (req, res, next) => {
+    try {
+        const db = require('../config/db')
+        const { cardId } = req.params
+
+        const card = await db('cards').where('id', cardId).first()
+        if (!card) return res.json({ code: 1003, msg: '卡片不存在' })
+
+        if (card.user_id === req.user.id) {
+            return res.json({ code: 1001, msg: '不能提醒自己' })
+        }
+
+        // 检查今天是否已经提醒过，防刷
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const recentLog = await db('contact_logs')
+            .where({
+                requester_id: req.user.id,
+                target_id: card.user_id,
+                status: 'remind'
+            })
+            .where('contacted_at', '>=', today)
+            .first()
+
+        if (recentLog) {
+            return res.json({ code: 1004, msg: '今天已经提醒过了，请耐心等待' })
+        }
+
+        await db('contact_logs').insert({
+            requester_id: req.user.id,
+            target_id: card.user_id,
+            card_id: parseInt(cardId),
+            status: 'remind',
+            contacted_at: new Date()
+        })
+
+        res.json({ code: 0, msg: '提醒发送成功' })
+    } catch (err) {
+        next(err)
+    }
+})
+
+// GET /api/contact/reminders - 获取我收到的提醒列表
+router.get('/reminders', auth, async (req, res, next) => {
+    try {
+        const db = require('../config/db')
+        const { page = 1, pageSize = 20 } = req.query
+        const offset = (parseInt(page) - 1) * parseInt(pageSize)
+
+        // 查询 status = 'remind' 且 target_id 是我的记录
+        const query = db('contact_logs')
+            .join('users', 'contact_logs.requester_id', 'users.id')
+            .select(
+                'contact_logs.id',
+                'contact_logs.contacted_at',
+                'contact_logs.card_id',
+                'users.nickname',
+                'users.avatar'
+            )
+            .where('contact_logs.target_id', req.user.id)
+            .where('contact_logs.status', 'remind')
+            .orderBy('contact_logs.contacted_at', 'desc')
+
+        const total = await query.clone().count('contact_logs.id as count').first()
+        const list = await query.limit(parseInt(pageSize)).offset(offset)
+
+        res.json({
+            code: 0,
+            msg: 'success',
+            data: {
+                page: parseInt(page),
+                pageSize: parseInt(pageSize),
+                total: total.count,
+                list
+            }
+        })
+    } catch (err) {
+        next(err)
+    }
+})
+
 module.exports = router
