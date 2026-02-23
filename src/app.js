@@ -44,6 +44,50 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' })
 })
 
+// === 临时路由：用于执行迁移和Mock数据插入 ===
+app.post('/api/operation/temp-seed', async (req, res) => {
+    try {
+        logger.info('触发临时 seed 脚本...')
+
+        // 1. 先执行数据库结构修改 (增加 JSON 列)
+        const db = require('./config/db');
+        const hasContactQuestions = await db.schema.hasColumn('cards', 'contact_questions');
+        const hasPreTags = await db.schema.hasColumn('cards', 'pre_answered_tags');
+
+        if (!hasContactQuestions || !hasPreTags) {
+            await db.schema.alterTable('cards', table => {
+                if (!hasContactQuestions) {
+                    table.json('contact_questions').defaultTo(null).comment('联系前的防骚扰问题 [{q, a}]');
+                }
+                if (!hasPreTags) {
+                    table.json('pre_answered_tags').defaultTo(null).comment('预设的服务承诺标签 ["标签1"]');
+                }
+            });
+            logger.info('数据库列添加成功');
+        }
+
+        // 2. 执行数据插入 (使用子进程防止直接载入阻塞)
+        const { exec } = require('child_process');
+        const path = require('path');
+        const scriptPath = path.join(__dirname, '../scripts/seed-mock.js');
+
+        exec(`node ${scriptPath}`, (error, stdout, stderr) => {
+            if (error) {
+                logger.error(`Seed 子进程执行错误: ${error}`);
+                return res.status(500).json({ code: 500, msg: error.message });
+            }
+            logger.info(`Seed 子进程标准输出: ${stdout}`);
+            logger.error(`Seed 子进程标准错误: ${stderr}`);
+            // 不能在这里响应，因为exec是异步的，我们可以先响应"已在后台执行"，或者如果脚本快就等
+        });
+
+        res.json({ code: 0, msg: '数据库迁移已执行，Seed 脚本已在后台启动！请查看云托管日志。' })
+    } catch (err) {
+        logger.error('Seed 路由错误:', err)
+        res.status(500).json({ code: 500, msg: err.message })
+    }
+})
+
 // 业务路由
 const userRoutes = require('./routes/user')
 const cardRoutes = require('./routes/card')

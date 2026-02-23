@@ -205,7 +205,8 @@ router.post('/', auth, async (req, res, next) => {
         const {
             bio, slogan, skills, tags, price_min, price_max,
             mode_online, mode_offline, region,
-            time_slots, dimensions, teaching_format, service_name
+            time_slots, dimensions, teaching_format, service_name,
+            contact_questions, pre_answered_tags
         } = req.body
 
         const cardData = {
@@ -221,6 +222,8 @@ router.post('/', auth, async (req, res, next) => {
             dimensions: JSON.stringify(dimensions || {}),
             teaching_format: teaching_format || '',
             service_name: service_name || '',
+            contact_questions: JSON.stringify(contact_questions || []),
+            pre_answered_tags: JSON.stringify(pre_answered_tags || []),
             status: 'active',
             updated_at: new Date()
         }
