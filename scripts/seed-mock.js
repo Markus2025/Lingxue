@@ -153,10 +153,26 @@ async function runSeeder() {
                     nickname = randomEl(surnames.split('')) + randomEl(names.split('')) + (Math.random() > 0.5 ? randomEl(names.split('')) : '');
                 }
 
+                // --------- 多元化头像生成 ---------
+                const avatarChance = Math.random();
+                let avatarUrl = '';
+                if (avatarChance < 0.25) {
+                    // 25% 真人占位图
+                    avatarUrl = `https://i.pravatar.cc/300?u=${userIdRaw}`;
+                } else if (avatarChance < 0.5) {
+                    // 25% 像素风格基础款
+                    avatarUrl = `https://api.dicebear.com/8.x/pixel-art/svg?seed=${userIdRaw}`;
+                } else {
+                    // 50% 插画风、二次元动漫风、电影感 (使用 DiceBear 优质库)
+                    const dicebearStyles = ['adventurer', 'avataaars', 'lorelei', 'micah', 'notionists', 'personas', 'croodles'];
+                    const style = randomEl(dicebearStyles);
+                    avatarUrl = `https://api.dicebear.com/8.x/${style}/svg?seed=${userIdRaw}`;
+                }
+
                 userObjs.push({
                     openid: userIdRaw,
                     nickname: nickname,
-                    avatar: `https://i.pravatar.cc/300?u=${userIdRaw}`,
+                    avatar: avatarUrl,
                     gender: gender,
                     phone: null,
                     wechat_id: null,
