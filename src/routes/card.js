@@ -14,12 +14,17 @@ router.get('/', optionalAuth, async (req, res, next) => {
             .whereNull('cards.deleted_at')
             .where('cards.status', 'active')
 
-        // 分类筛选 — 匹配 skills 数组中对象的 id 字段
+        // 分类筛选 — 匹配 skills 数组中对象的 id 字段 (支持多个逗号分隔的ID进行ORM OR查询)
         if (category && category !== 'all') {
-            baseQuery.whereRaw(
-                `JSON_SEARCH(cards.skills, 'one', ?, NULL, '$[*].id') IS NOT NULL`,
-                [category]
-            )
+            const categoryIds = category.split(',');
+            baseQuery.where(function () {
+                for (const catId of categoryIds) {
+                    this.orWhereRaw(
+                        `JSON_SEARCH(cards.skills, 'one', ?, NULL, '$[*].id') IS NOT NULL`,
+                        [catId]
+                    )
+                }
+            })
         }
 
         // 价格区间筛选

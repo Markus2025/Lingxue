@@ -55,42 +55,49 @@ router.post('/search', optionalAuth, async (req, res, next) => {
                 'users.major', 'users.grade', 'users.location', 'users.edu_verified'
             )
 
-        if (mode === 'ai' && filters) {
-            // ---- AI 模式：使用结构化筛选条件 ----
-            // 技能 ID 筛选
-            if (filters.skill_ids && filters.skill_ids.length > 0) {
-                dbQuery = dbQuery.where(function () {
-                    for (const sid of filters.skill_ids) {
-                        this.orWhereRaw(
-                            `JSON_SEARCH(cards.skills, 'one', ?, NULL, '$[*].id') IS NOT NULL`,
-                            [sid]
-                        )
-                    }
-                })
-            }
+        if (mode === 'ai' && filters && Array.isArray(filters) && filters.length > 0) {
+            // ---- AI 模式：使用多组条件构成的 OR 条件组 ----
+            // 每组内部是 AND，不同组之间是 OR
+            dbQuery = dbQuery.where(function () {
+                for (const conditionGroup of filters) {
+                    this.orWhere(function () {
+                        // 技能 ID 筛选 (组内内部 OR，但与其他条件 AND)
+                        if (conditionGroup.skill_ids && conditionGroup.skill_ids.length > 0) {
+                            this.where(function () {
+                                for (const sid of conditionGroup.skill_ids) {
+                                    this.orWhereRaw(
+                                        `JSON_SEARCH(cards.skills, 'one', ?, NULL, '$[*].id') IS NOT NULL`,
+                                        [sid]
+                                    )
+                                }
+                            })
+                        }
 
-            // 地区
-            if (filters.region) {
-                dbQuery = dbQuery.where('cards.region', 'like', `%${filters.region}%`)
-            }
+                        // 地区
+                        if (conditionGroup.region) {
+                            this.where('cards.region', 'like', `%${conditionGroup.region}%`)
+                        }
 
-            // 价格
-            if (filters.max_price !== null && filters.max_price !== undefined) {
-                dbQuery = dbQuery.where('cards.price_min', '<=', parseInt(filters.max_price))
-            }
+                        // 价格
+                        if (conditionGroup.max_price !== null && conditionGroup.max_price !== undefined) {
+                            this.where('cards.price_min', '<=', parseInt(conditionGroup.max_price))
+                        }
 
-            // 授课模式
-            if (filters.mode === 'online') dbQuery = dbQuery.where('cards.mode_online', true)
-            if (filters.mode === 'offline') dbQuery = dbQuery.where('cards.mode_offline', true)
+                        // 授课模式
+                        if (conditionGroup.mode === 'online') this.where('cards.mode_online', true)
+                        if (conditionGroup.mode === 'offline') this.where('cards.mode_offline', true)
 
-            // 关键词补充
-            if (filters.keyword) {
-                dbQuery = dbQuery.where(function () {
-                    this.where('cards.bio', 'like', `%${filters.keyword}%`)
-                        .orWhere('cards.slogan', 'like', `%${filters.keyword}%`)
-                        .orWhere('users.nickname', 'like', `%${filters.keyword}%`)
-                })
-            }
+                        // 关键词补充
+                        if (conditionGroup.keyword) {
+                            this.where(function () {
+                                this.where('cards.bio', 'like', `%${conditionGroup.keyword}%`)
+                                    .orWhere('cards.slogan', 'like', `%${conditionGroup.keyword}%`)
+                                    .orWhere('users.nickname', 'like', `%${conditionGroup.keyword}%`)
+                            })
+                        }
+                    })
+                }
+            })
         } else {
             // ---- 传统模式：多字段 LIKE 模糊匹配 ----
             steps = [
@@ -163,12 +170,15 @@ sports: ball1=网球, ball2=羽毛球, ball3=篮球, fit1=健身陪练, fit2=瑜
 life: life1=美妆, life3=驾驶陪练, life4=摄影跟拍, play1=游戏搭子, play8=剧本杀
 
 任务:
-1. 理解用户需求
-2. 生成3条简短分析步骤
-3. 返回结构化筛选条件
+1. 深入理解用户的意图，处理复杂的 OR (或者) 逻辑组合。
+2. 生成3条简短分析步骤。
+3. 返回**结构化筛选条件对象数组**。每一个数组元素代表一组组合条件 (组内逻辑是 AND)，多个数组元素代表或者 (OR)。
+例如用户说："找杭州线下教数学的，或者任何地方支持线上的"，你应该输出两组条件：
+第一组：region="杭州", mode="offline", skill_ids=["math1"]
+第二组：region=null, mode="online", skill_ids=["math1"]
 
 返回JSON格式:
-{"steps":["步骤1","步骤2","步骤3"],"filters":{"skill_ids":["id"],"region":"城市或null","max_price":数字或null,"mode":"online/offline或null","keyword":"关键词或null"}}`
+{"steps":["步骤1","步骤2","步骤3"],"filters":[{"skill_ids":["id"],"region":"城市或null","max_price":数字或null,"mode":"online/offline或null","keyword":"关键词或null"}]}`
 
     const response = await fetch(endpoint, {
         method: 'POST',

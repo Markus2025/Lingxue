@@ -231,6 +231,77 @@ const randomSample = (arr, n) => {
 };
 const generateRandomId = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
+function generateCard(userId, filterItem, city) {
+    const isAcademic = filterItem.id.match(/^[a-z]+[0-9]+$/) && !filterItem.id.match(/^(ai|des|life|play|fit|out|ball|inst|paint|vocal)[0-9]+$/);
+    const tags = isAcademic
+        ? randomSample(PRE_TAGS_POOL.filter(t => !t.includes('改时间')), 2)
+        : randomSample(PRE_TAGS_POOL, 2);
+
+    // 随机分配授课形式 (线上/线下)
+    const modeRand = Math.random();
+    let mode_online = false;
+    let mode_offline = false;
+    if (modeRand < 0.3) {
+        mode_online = true;  // 仅线上 (30%)
+    } else if (modeRand < 0.6) {
+        mode_offline = true; // 仅线下 (30%)
+    } else {
+        mode_online = true;
+        mode_offline = true; // 线上线下均可 (40%)
+    }
+
+    const isDetailed = Math.random() < 0.6;
+
+    // ---- 从筛选栏项目池中随机抽取 1-3 个技能 ----
+    const skillCount = randomInt(1, 3);
+    const selectedSkills = randomSample(SKILL_ITEMS, skillCount).map(item => ({
+        name: item.name,
+        id: item.id,
+        type: Math.random() > 0.4 ? 'teaching' : 'accompaniment'
+    }));
+
+    // ---- 整数一口价 ----
+    const price = randomEl(PRICE_POOL);
+
+    const cardObj = {
+        user_id: userId,
+        bio: isDetailed ? randomEl(BIOS) : (Math.random() > 0.5 ? '欢迎联系我！' : null),
+        slogan: isDetailed ? randomEl(SLOGANS) : null,
+        skills: JSON.stringify(selectedSkills),
+        tags: JSON.stringify(randomSample(TAGS_POOL, randomInt(2, 5))),
+        price_min: price,
+        price_max: price,
+        mode_online: mode_online ? 1 : 0,
+        mode_offline: mode_offline ? 1 : 0,
+        region: city,
+        contact_questions: JSON.stringify(randomSample(QA_POOL, randomInt(1, 3))),
+        pre_answered_tags: JSON.stringify(randomSample(PRE_TAGS_POOL, randomInt(1, 4))),
+        view_count: randomInt(10, 500),
+        contact_count: randomInt(0, 50),
+        favorite_count: randomInt(0, 100),
+        status: 'active',
+        created_at: new Date()
+    };
+
+    if (isDetailed) {
+        const dims = randomSample(DIMENSIONS_NAMES, 5).map(name => ({ name, value: randomInt(4, 5) }));
+        cardObj.dimensions = JSON.stringify(dims);
+        cardObj.time_slots = JSON.stringify([
+            { dayIndex: randomInt(0, 6), startTime: '09:00', endTime: '12:00' },
+            { dayIndex: randomInt(0, 6), startTime: '14:00', endTime: '18:00' }
+        ]);
+        cardObj.teaching_format = '一对一辅导';
+        cardObj.service_name = '精品陪练/辅导';
+    } else {
+        cardObj.dimensions = JSON.stringify([]);
+        cardObj.time_slots = JSON.stringify([]);
+        cardObj.teaching_format = '';
+        cardObj.service_name = '';
+    }
+
+    return cardObj;
+}
+
 function generateNickname() {
     const nameType = Math.random();
     let nickname = '';
