@@ -285,8 +285,6 @@ function generateCard(userId, filterItem, city) {
     };
 
     if (isDetailed) {
-        const dims = randomSample(DIMENSIONS_NAMES, 5).map(name => ({ name, value: randomInt(4, 5) }));
-        cardObj.dimensions = JSON.stringify(dims);
         cardObj.time_slots = JSON.stringify([
             { dayIndex: randomInt(0, 6), startTime: '09:00', endTime: '12:00' },
             { dayIndex: randomInt(0, 6), startTime: '14:00', endTime: '18:00' }
@@ -294,7 +292,6 @@ function generateCard(userId, filterItem, city) {
         cardObj.teaching_format = '一对一辅导';
         cardObj.service_name = '精品陪练/辅导';
     } else {
-        cardObj.dimensions = JSON.stringify([]);
         cardObj.time_slots = JSON.stringify([]);
         cardObj.teaching_format = '';
         cardObj.service_name = '';

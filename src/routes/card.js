@@ -298,13 +298,16 @@ router.post('/', auth, async (req, res, next) => {
         const existing = await db('cards').where({ user_id: req.user.id }).whereNull('deleted_at').first()
 
         let cardId
+
+        // --- 强制设置真人用户的曝光值为 1，以确保置顶 ---
+        cardData.exposure = 1;
+
         if (existing) {
             await db('cards').where({ id: existing.id }).update(cardData)
             cardId = existing.id
         } else {
             cardData.user_id = req.user.id
             cardData.created_at = new Date()
-            cardData.exposure = 1
                 ;[cardId] = await db('cards').insert(cardData)
         }
 
