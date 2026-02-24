@@ -54,6 +54,35 @@ router.post('/login', requireHeaders, async (req, res, next) => {
     }
 })
 
+// POST /api/user/refresh-ling-code - 刷新邻学码
+router.post('/refresh-ling-code', auth, async (req, res, next) => {
+    try {
+        const db = require('../config/db')
+        const lingCode = require('../utils/lingCode')
+
+        // 生成新的邻学码
+        const new_ling_code = await lingCode.generate(db)
+
+        // 更新到数据库
+        await db('users')
+            .where({ id: req.user.id })
+            .update({
+                ling_code: new_ling_code,
+                updated_at: new Date()
+            })
+
+        res.json({
+            code: 0,
+            msg: 'success',
+            data: {
+                ling_code: new_ling_code
+            }
+        })
+    } catch (err) {
+        next(err)
+    }
+})
+
 // GET /api/user/profile - 获取当前用户资料
 router.get('/profile', auth, async (req, res, next) => {
     try {

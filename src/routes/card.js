@@ -52,7 +52,8 @@ router.get('/', optionalAuth, async (req, res, next) => {
             'users.grade',
             'users.location',
             'users.edu_verified',
-            'users.ling_code'
+            'users.ling_code',
+            'users.last_login_at'
         )
 
         // 排序: 曝光值高的优先，同曝光值内再按用户指定排序
@@ -146,7 +147,7 @@ router.get('/search', optionalAuth, async (req, res, next) => {
 
         // 3. 构建详细查询
         const list = await baseQuery.clone()
-            .select('cards.*', 'users.nickname', 'users.avatar', 'users.school', 'users.major', 'users.grade', 'users.location', 'users.edu_verified', 'users.ling_code')
+            .select('cards.*', 'users.nickname', 'users.avatar', 'users.school', 'users.major', 'users.grade', 'users.location', 'users.edu_verified', 'users.ling_code', 'users.last_login_at')
             .orderBy('cards.updated_at', 'desc')
             .limit(parseInt(pageSize))
             .offset(offset)
@@ -222,6 +223,8 @@ router.get('/by-code/:code', optionalAuth, async (req, res, next) => {
         card.location = user.location
         card.edu_verified = user.edu_verified
         card.ling_code = user.ling_code
+        card.last_login_at = user.last_login_at
+        card.last_login_at = user.last_login_at
 
         res.json({ code: 0, msg: 'success', data: card })
     } catch (err) {
