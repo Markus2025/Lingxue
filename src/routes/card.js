@@ -174,6 +174,61 @@ router.get('/search', optionalAuth, async (req, res, next) => {
     }
 })
 
+// GET /api/cards/mine - 获取当前用户自己的卡片（不论状态）
+router.get('/mine', auth, async (req, res, next) => {
+    try {
+        const db = require('../config/db')
+        const card = await db('cards')
+            .where({ user_id: req.user.id })
+            .whereNull('deleted_at')
+            .first()
+
+        if (!card) {
+            return res.json({ code: 0, msg: 'success', data: null })
+        }
+
+        res.json({ code: 0, msg: 'success', data: card })
+    } catch (err) {
+        next(err)
+    }
+})
+
+// GET /api/cards/by-code/:code - 通过邻学码查卡片
+router.get('/by-code/:code', optionalAuth, async (req, res, next) => {
+    try {
+        const db = require('../config/db')
+        const { code } = req.params
+
+        const user = await db('users').where({ ling_code: code }).first()
+        if (!user) {
+            return res.json({ code: 1001, msg: '未找到该邻学码对应的用户' })
+        }
+
+        const card = await db('cards')
+            .where({ user_id: user.id })
+            .whereNull('deleted_at')
+            .first()
+
+        if (!card) {
+            return res.json({ code: 1002, msg: '该用户暂未发布卡片' })
+        }
+
+        // 附带用户信息
+        card.nickname = user.nickname
+        card.avatar = user.avatar
+        card.school = user.school
+        card.major = user.major
+        card.grade = user.grade
+        card.location = user.location
+        card.edu_verified = user.edu_verified
+        card.ling_code = user.ling_code
+
+        res.json({ code: 0, msg: 'success', data: card })
+    } catch (err) {
+        next(err)
+    }
+})
+
 // GET /api/cards/:id - 卡片详情
 router.get('/:id', optionalAuth, async (req, res, next) => {
     try {
@@ -209,25 +264,6 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
             msg: 'success',
             data: { ...card, is_favorited }
         })
-    } catch (err) {
-        next(err)
-    }
-})
-
-// GET /api/cards/mine - 获取当前用户自己的卡片（不论状态）
-router.get('/mine', auth, async (req, res, next) => {
-    try {
-        const db = require('../config/db')
-        const card = await db('cards')
-            .where({ user_id: req.user.id })
-            .whereNull('deleted_at')
-            .first()
-
-        if (!card) {
-            return res.json({ code: 0, msg: 'success', data: null })
-        }
-
-        res.json({ code: 0, msg: 'success', data: card })
     } catch (err) {
         next(err)
     }
@@ -273,42 +309,6 @@ router.post('/', auth, async (req, res, next) => {
         }
 
         const card = await db('cards').where({ id: cardId }).first()
-        res.json({ code: 0, msg: 'success', data: card })
-    } catch (err) {
-        next(err)
-    }
-})
-
-// GET /api/cards/by-code/:code - 通过邻学码查卡片
-router.get('/by-code/:code', optionalAuth, async (req, res, next) => {
-    try {
-        const db = require('../config/db')
-        const { code } = req.params
-
-        const user = await db('users').where({ ling_code: code }).first()
-        if (!user) {
-            return res.json({ code: 1001, msg: '未找到该邻学码对应的用户' })
-        }
-
-        const card = await db('cards')
-            .where({ user_id: user.id })
-            .whereNull('deleted_at')
-            .first()
-
-        if (!card) {
-            return res.json({ code: 1002, msg: '该用户暂未发布卡片' })
-        }
-
-        // 附带用户信息
-        card.nickname = user.nickname
-        card.avatar = user.avatar
-        card.school = user.school
-        card.major = user.major
-        card.grade = user.grade
-        card.location = user.location
-        card.edu_verified = user.edu_verified
-        card.ling_code = user.ling_code
-
         res.json({ code: 0, msg: 'success', data: card })
     } catch (err) {
         next(err)
