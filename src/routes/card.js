@@ -214,6 +214,25 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     }
 })
 
+// GET /api/cards/mine - 获取当前用户自己的卡片（不论状态）
+router.get('/mine', auth, async (req, res, next) => {
+    try {
+        const db = require('../config/db')
+        const card = await db('cards')
+            .where({ user_id: req.user.id })
+            .whereNull('deleted_at')
+            .first()
+
+        if (!card) {
+            return res.json({ code: 0, msg: 'success', data: null })
+        }
+
+        res.json({ code: 0, msg: 'success', data: card })
+    } catch (err) {
+        next(err)
+    }
+})
+
 // POST /api/cards - 创建或更新我的卡片
 router.post('/', auth, async (req, res, next) => {
     try {
