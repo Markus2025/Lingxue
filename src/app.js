@@ -53,14 +53,18 @@ app.post('/api/operation/temp-seed', async (req, res) => {
         const db = require('./config/db');
         const hasContactQuestions = await db.schema.hasColumn('cards', 'contact_questions');
         const hasPreTags = await db.schema.hasColumn('cards', 'pre_answered_tags');
+        const hasExposure = await db.schema.hasColumn('cards', 'exposure');
 
-        if (!hasContactQuestions || !hasPreTags) {
+        if (!hasContactQuestions || !hasPreTags || !hasExposure) {
             await db.schema.alterTable('cards', table => {
                 if (!hasContactQuestions) {
                     table.json('contact_questions').defaultTo(null).comment('联系前的防骚扰问题 [{q, a}]');
                 }
                 if (!hasPreTags) {
                     table.json('pre_answered_tags').defaultTo(null).comment('预设的服务承诺标签 ["标签1"]');
+                }
+                if (!hasExposure) {
+                    table.integer('exposure').defaultTo(0).comment('曝光值: 0=Mock, 1=真人用户');
                 }
             });
             logger.info('数据库列添加成功');

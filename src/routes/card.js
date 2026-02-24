@@ -55,18 +55,18 @@ router.get('/', optionalAuth, async (req, res, next) => {
             'users.ling_code'
         )
 
-        // 排序
+        // 排序: 曝光值高的优先，同曝光值内再按用户指定排序
         if (sort === 'random') {
             const seedNum = parseInt(req.query.seed) || 1
-            listQuery = listQuery.orderByRaw(`RAND(${seedNum})`)
+            listQuery = listQuery.orderByRaw(`cards.exposure DESC, RAND(${seedNum})`)
         } else if (sort === 'newest') {
-            listQuery = listQuery.orderBy('cards.created_at', 'desc')
+            listQuery = listQuery.orderBy('cards.exposure', 'desc').orderBy('cards.created_at', 'desc')
         } else if (sort === 'price_asc') {
-            listQuery = listQuery.orderBy('cards.price_min', 'asc')
+            listQuery = listQuery.orderBy('cards.exposure', 'desc').orderBy('cards.price_min', 'asc')
         } else if (sort === 'price_desc') {
-            listQuery = listQuery.orderBy('cards.price_min', 'desc')
+            listQuery = listQuery.orderBy('cards.exposure', 'desc').orderBy('cards.price_min', 'desc')
         } else {
-            listQuery = listQuery.orderBy('cards.updated_at', 'desc')
+            listQuery = listQuery.orderBy('cards.exposure', 'desc').orderBy('cards.updated_at', 'desc')
         }
 
         // 分页
@@ -221,8 +221,7 @@ router.post('/', auth, async (req, res, next) => {
         const {
             bio, slogan, skills, tags, price_min, price_max,
             mode_online, mode_offline, region,
-            time_slots, dimensions, teaching_format, service_name,
-            contact_questions, pre_answered_tags
+            time_slots, contact_questions, status
         } = req.body
 
         const cardData = {
@@ -235,12 +234,8 @@ router.post('/', auth, async (req, res, next) => {
             mode_offline: mode_offline || false,
             region: region || '',
             time_slots: JSON.stringify(time_slots || []),
-            dimensions: JSON.stringify(dimensions || {}),
-            teaching_format: teaching_format || '',
-            service_name: service_name || '',
             contact_questions: JSON.stringify(contact_questions || []),
-            pre_answered_tags: JSON.stringify(pre_answered_tags || []),
-            status: 'active',
+            status: status || 'draft',
             updated_at: new Date()
         }
 
@@ -254,10 +249,47 @@ router.post('/', auth, async (req, res, next) => {
         } else {
             cardData.user_id = req.user.id
             cardData.created_at = new Date()
+            cardData.exposure = 1
                 ;[cardId] = await db('cards').insert(cardData)
         }
 
         const card = await db('cards').where({ id: cardId }).first()
+        res.json({ code: 0, msg: 'success', data: card })
+    } catch (err) {
+        next(err)
+    }
+})
+
+// GET /api/cards/by-code/:code - 通过邻学码查卡片
+router.get('/by-code/:code', optionalAuth, async (req, res, next) => {
+    try {
+        const db = require('../config/db')
+        const { code } = req.params
+
+        const user = await db('users').where({ ling_code: code }).first()
+        if (!user) {
+            return res.json({ code: 1001, msg: '未找到该邻学码对应的用户' })
+        }
+
+        const card = await db('cards')
+            .where({ user_id: user.id })
+            .whereNull('deleted_at')
+            .first()
+
+        if (!card) {
+            return res.json({ code: 1002, msg: '该用户暂未发布卡片' })
+        }
+
+        // 附带用户信息
+        card.nickname = user.nickname
+        card.avatar = user.avatar
+        card.school = user.school
+        card.major = user.major
+        card.grade = user.grade
+        card.location = user.location
+        card.edu_verified = user.edu_verified
+        card.ling_code = user.ling_code
+
         res.json({ code: 0, msg: 'success', data: card })
     } catch (err) {
         next(err)

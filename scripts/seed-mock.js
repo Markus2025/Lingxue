@@ -187,7 +187,7 @@ const SLOGANS = [
     '有趣有料，绝不枯燥', '认真负责，使命必达'
 ];
 
-const TAGS_POOL = ['接梗达人', '早起冠军', 'MBTI: ENFP', '深夜网抑云', '猫奴', '资深吃货', '运动狂魔', '拖延症克星', '耐心LvMAX', '社恐一枚', 'MBTI: INTJ', '咖啡续命', '二次元宅', '摸鱼大师'];
+const TAGS_POOL = ['认真负责', '超有耐心', '风趣幽默', '逻辑清晰', '温柔亲切', '严格要求', '善于沟通', '经验丰富', '热情开朗', '细心体贴', '接梗达人', '佛系青年', '耐心LvMAX', '超级靠谱', '话多星人', '温和系'];
 
 const DIMENSIONS_NAMES = ['耐心度', '专业度', '亲和力', '严格度', '趣味性', '准时率', '幽默感', '沟通力'];
 
@@ -280,6 +280,7 @@ function generateCard(userId, filterItem, city) {
         contact_count: randomInt(0, 50),
         favorite_count: randomInt(0, 100),
         status: 'active',
+        exposure: 0,
         created_at: new Date()
     };
 
