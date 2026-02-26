@@ -154,22 +154,4 @@ router.post('/verify-edu', auth, async (req, res, next) => {
     }
 })
 
-// POST /api/user/ling-code/reset - 重置邻学码
-router.post('/ling-code/reset', auth, async (req, res, next) => {
-    try {
-        const db = require('../config/db')
-        const lingCode = require('../utils/lingCode')
-
-        const newCode = await lingCode.generate(db)
-        await db('users').where({ openid: req.openid }).update({
-            ling_code: newCode,
-            updated_at: new Date()
-        })
-
-        res.json({ code: 0, msg: 'success', data: { ling_code: newCode } })
-    } catch (err) {
-        next(err)
-    }
-})
-
 module.exports = router

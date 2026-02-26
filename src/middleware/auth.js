@@ -5,6 +5,9 @@
 const db = require('../config/db')
 const logger = require('../config/logger')
 
+/**
+ * 强制鉴权：必须有 openid 且用户已注册
+ */
 async function auth(req, res, next) {
     const openid = req.headers['x-wx-openid']
 
@@ -16,7 +19,6 @@ async function auth(req, res, next) {
     req.unionid = req.headers['x-wx-unionid'] || null
 
     try {
-        // 查询用户信息并挂载到 req.user
         const user = await db('users').where({ openid }).first()
         if (!user) {
             return res.json({ code: 1002, msg: '用户未注册，请先登录' })
@@ -47,10 +49,8 @@ async function optionalAuth(req, res, next) {
     next()
 }
 
-module.exports = { auth, optionalAuth, requireHeaders }
-
 /**
- * 仅检查微信 header 注入 (用于 login 接口，不检查 DB)
+ * 仅检查微信 header 注入（用于 login 接口，不查 DB）
  */
 function requireHeaders(req, res, next) {
     const openid = req.headers['x-wx-openid']
@@ -61,3 +61,5 @@ function requireHeaders(req, res, next) {
     req.unionid = req.headers['x-wx-unionid'] || null
     next()
 }
+
+module.exports = { auth, optionalAuth, requireHeaders }

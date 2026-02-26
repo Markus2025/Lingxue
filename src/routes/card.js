@@ -224,7 +224,6 @@ router.get('/by-code/:code', optionalAuth, async (req, res, next) => {
         card.edu_verified = user.edu_verified
         card.ling_code = user.ling_code
         card.last_login_at = user.last_login_at
-        card.last_login_at = user.last_login_at
 
         res.json({ code: 0, msg: 'success', data: card })
     } catch (err) {

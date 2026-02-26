@@ -44,55 +44,7 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' })
 })
 
-// === 临时路由：用于执行迁移和Mock数据插入 ===
-app.post('/api/operation/temp-seed', async (req, res) => {
-    try {
-        logger.info('触发临时 seed 脚本...')
-
-        // 1. 先执行数据库结构修改 (增加 JSON 列)
-        const db = require('./config/db');
-        const hasContactQuestions = await db.schema.hasColumn('cards', 'contact_questions');
-        const hasPreTags = await db.schema.hasColumn('cards', 'pre_answered_tags');
-        const hasExposure = await db.schema.hasColumn('cards', 'exposure');
-
-        if (!hasContactQuestions || !hasPreTags || !hasExposure) {
-            await db.schema.alterTable('cards', table => {
-                if (!hasContactQuestions) {
-                    table.json('contact_questions').defaultTo(null).comment('联系前的防骚扰问题 [{q, a}]');
-                }
-                if (!hasPreTags) {
-                    table.json('pre_answered_tags').defaultTo(null).comment('预设的服务承诺标签 ["标签1"]');
-                }
-                if (!hasExposure) {
-                    table.integer('exposure').defaultTo(0).comment('曝光值: 0=Mock, 1=真人用户');
-                }
-            });
-            logger.info('数据库列添加成功');
-        }
-
-        // 2. 执行数据插入 (使用子进程防止直接载入阻塞)
-        const { exec } = require('child_process');
-        const path = require('path');
-        const scriptPath = path.join(__dirname, '../scripts/seed-mock.js');
-
-        exec(`node ${scriptPath}`, (error, stdout, stderr) => {
-            if (error) {
-                logger.error(`Seed 子进程执行错误: ${error}`);
-                // 因为已经响应该请求，仅记录错误
-                return;
-            }
-            logger.info(`Seed 子进程标准输出: ${stdout}`);
-            if (stderr) logger.error(`Seed 子进程标准错误: ${stderr}`);
-        });
-
-        res.json({ code: 0, msg: '数据库查询和种子脚本已在后台触发！请查阅云端日志。' })
-    } catch (err) {
-        logger.error('Seed 路由错误:', err)
-        res.status(500).json({ code: 500, msg: err.message })
-    }
-})
-
-// 业务路由
+// ========== 业务路由 ==========
 const userRoutes = require('./routes/user')
 const cardRoutes = require('./routes/card')
 const contactRoutes = require('./routes/contact')
