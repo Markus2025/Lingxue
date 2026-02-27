@@ -278,7 +278,8 @@ router.post('/', auth, async (req, res, next) => {
         const {
             bio, slogan, skills, tags, price_min, price_max,
             mode_online, mode_offline, region,
-            time_slots, contact_questions, status
+            time_slots, contact_questions, status,
+            wechat_id, wechat_qrcode
         } = req.body
 
         const cardData = {
@@ -311,6 +312,17 @@ router.post('/', auth, async (req, res, next) => {
             cardData.user_id = req.user.id
             cardData.created_at = new Date()
                 ;[cardId] = await db('cards').insert(cardData)
+        }
+
+        // --- 更新用户的联系方式 ---
+        if (wechat_id !== undefined || wechat_qrcode !== undefined) {
+            const userUpdate = {}
+            if (wechat_id !== undefined) userUpdate.wechat_id = wechat_id
+            if (wechat_qrcode !== undefined) userUpdate.wechat_qrcode = wechat_qrcode
+
+            if (Object.keys(userUpdate).length > 0) {
+                await db('users').where({ id: req.user.id }).update(userUpdate)
+            }
         }
 
         const card = await db('cards').where({ id: cardId }).first()

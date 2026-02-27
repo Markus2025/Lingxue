@@ -119,7 +119,7 @@ router.post('/search', optionalAuth, async (req, res, next) => {
                         .orWhere('cards.region', 'like', `%${kw}%`)
                         .orWhereRaw(
                             `JSON_SEARCH(cards.skills, 'one', ?, NULL, '$[*].name') IS NOT NULL`,
-                            [kw]
+                            [`%${kw}%`]
                         )
                 }
             })
@@ -155,7 +155,7 @@ async function callDeepSeekSearch(query, apiKey) {
     const systemPrompt = `你是「邻学」平台的智能搜索引擎。用户用自然语言描述想找的人或服务。
 
 数据库卡片有以下字段:
-- skills: JSON数组, 每项 {id, name, type}
+- skills: JSON数组, 每项 {id, name, type}。注意有可能存在 custom 自定义 id 但是 name 有值的项
 - region: 城市名(北京/上海/杭州等)
 - price_min: 整数价格(0=免费)
 - mode_online/mode_offline: 授课模式
@@ -173,9 +173,10 @@ life: life1=美妆, life3=驾驶陪练, life4=摄影跟拍, play1=游戏搭子, 
 1. 深入理解用户的意图，处理复杂的 OR (或者) 逻辑组合。
 2. 生成3条简短分析步骤。
 3. 返回**结构化筛选条件对象数组**。每一个数组元素代表一组组合条件 (组内逻辑是 AND)，多个数组元素代表或者 (OR)。
-例如用户说："找杭州线下教数学的，或者任何地方支持线上的"，你应该输出两组条件：
-第一组：region="杭州", mode="offline", skill_ids=["math1"]
-第二组：region=null, mode="online", skill_ids=["math1"]
+例如用户说："找杭州线下教数学的或者尤克里里的"，你应该输出两组条件：
+第一组：region="杭州", mode="offline", skill_ids=["math1"], keyword="尤克里里"
+
+注意，如果用户搜索的技能不在 ID 列表内，请将其作为 keyword 处理。
 
 返回JSON格式:
 {"steps":["步骤1","步骤2","步骤3"],"filters":[{"skill_ids":["id"],"region":"城市或null","max_price":数字或null,"mode":"online/offline或null","keyword":"关键词或null"}]}`
