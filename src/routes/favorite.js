@@ -92,7 +92,7 @@ router.get('/', auth, async (req, res, next) => {
             query = query.where('favorites.category_id', parseInt(category_id))
         }
 
-        const total = await query.clone().count('favorites.id as count').first()
+        const total = await query.clone().clearSelect().count('favorites.id as count').first()
         const list = await query.limit(parseInt(pageSize)).offset(offset)
 
         res.json({
