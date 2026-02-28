@@ -78,9 +78,10 @@ router.get('/', auth, async (req, res, next) => {
                 'cards.id as card_id',
                 'cards.slogan', 'cards.skills', 'cards.tags',
                 'cards.price_min', 'cards.price_max',
+                'cards.mode_online', 'cards.mode_offline', 'cards.region',
                 'users.id as user_id', 'users.nickname', 'users.avatar',
                 'users.school', 'users.major', 'users.grade',
-                'users.location', 'users.edu_verified'
+                'users.location', 'users.edu_verified', 'users.last_login_at'
             )
             .where('favorites.user_id', req.user.id)
             .whereNull('favorites.deleted_at')
