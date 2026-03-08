@@ -87,6 +87,16 @@ router.get('/stats', auth, async (req, res, next) => {
             .count('id as count')
             .first()
 
+        // 被收藏次数总计
+        let favoriteCount = { count: 0 }
+        if (card) {
+            favoriteCount = await db('favorites')
+                .where('card_id', card.id)
+                .whereNull('deleted_at')
+                .count('id as count')
+                .first() || { count: 0 }
+        }
+
         // --- 历史趋势数据 (近30天) ---
         const dateObj = new Date()
         const offsetMs = dateObj.getTimezoneOffset() * 60 * 1000
