@@ -74,26 +74,53 @@ router.get('/stats', auth, async (req, res, next) => {
     try {
         const db = require('../config/db')
 
-        // 我的卡片浏览量
+        // 我的卡片基本信息
         const card = await db('cards')
             .where({ user_id: req.user.id })
             .whereNull('deleted_at')
-            .select('view_count')
+            .select('id', 'view_count')
             .first()
 
-        // 被联系次数
+        // 被联系次数总计
         const contactCount = await db('contact_logs')
             .where('target_id', req.user.id)
             .count('id as count')
             .first()
 
-        // 被收藏次数
-        const favoriteCount = await db('favorites')
-            .join('cards', 'favorites.card_id', 'cards.id')
-            .where('cards.user_id', req.user.id)
-            .whereNull('favorites.deleted_at')
-            .count('favorites.id as count')
-            .first()
+        // --- 历史趋势数据 (近30天) ---
+        const dateObj = new Date()
+        const offsetMs = dateObj.getTimezoneOffset() * 60 * 1000
+        const localDate = new Date(dateObj.getTime() - offsetMs)
+        const todayStr = localDate.toISOString().split('T')[0]
+
+        // 30天前的日期
+        const thirtyDaysAgo = new Date(localDate.getTime() - 29 * 24 * 60 * 60 * 1000)
+        const startDateStr = thirtyDaysAgo.toISOString().split('T')[0]
+
+        let dailyViews = []
+        if (card) {
+            dailyViews = await db('card_daily_views')
+                .where('card_id', card.id)
+                .where('view_date', '>=', startDateStr)
+                .where('view_date', '<=', todayStr)
+                .select(db.raw('DATE_FORMAT(view_date, "%Y-%m-%d") as date'), 'view_count as count')
+        }
+
+        const dailyContacts = await db('contact_logs')
+            .where('target_id', req.user.id)
+            .where('contacted_at', '>=', startDateStr + ' 00:00:00')
+            .select(db.raw('DATE_FORMAT(contacted_at, "%Y-%m-%d") as date'), db.raw('COUNT(*) as count'))
+            .groupByRaw('DATE_FORMAT(contacted_at, "%Y-%m-%d")')
+
+        // 简易计算趋势 (最近7天 vs 上一个7天)，这里前端使用趋势百分比展示
+        const calcTrend = (arr) => {
+            const arr7 = arr.slice(-7)
+            const prev7 = arr.slice(-14, -7)
+            const sum7 = arr7.reduce((a, b) => a + Number(b.count || 0), 0)
+            const sumPrev = prev7.reduce((a, b) => a + Number(b.count || 0), 0)
+            if (sumPrev === 0) return sum7 > 0 ? 100 : 0
+            return Math.floor(((sum7 - sumPrev) / sumPrev) * 100)
+        }
 
         res.json({
             code: 0,
@@ -101,7 +128,13 @@ router.get('/stats', auth, async (req, res, next) => {
             data: {
                 view_count: card ? card.view_count : 0,
                 contact_count: contactCount.count,
-                favorite_count: favoriteCount.count
+                favorite_count: favoriteCount.count,
+                views_trend: calcTrend(dailyViews),
+                contacts_trend: calcTrend(dailyContacts),
+                daily_views: dailyViews,
+                daily_contacts: dailyContacts,
+                start_date: startDateStr,
+                end_date: todayStr
             }
         })
     } catch (err) {

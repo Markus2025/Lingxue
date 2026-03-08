@@ -11,7 +11,7 @@ router.post('/:cardId', auth, async (req, res, next) => {
         // 查找目标卡片
         const card = await db('cards')
             .join('users', 'cards.user_id', 'users.id')
-            .select('cards.*', 'users.wechat_id', 'users.phone')
+            .select('cards.*', 'users.wechat_id', 'users.wechat_qrcode', 'users.phone')
             .where('cards.id', cardId)
             .whereNull('cards.deleted_at')
             .first()
@@ -39,6 +39,7 @@ router.post('/:cardId', auth, async (req, res, next) => {
             msg: 'success',
             data: {
                 wechat_id: card.wechat_id || null,
+                wechat_qrcode: card.wechat_qrcode || null,
                 phone: card.phone || null
             }
         })

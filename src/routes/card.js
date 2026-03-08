@@ -248,8 +248,25 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
             return res.json({ code: 1003, msg: '卡片不存在' })
         }
 
-        // 增加浏览量
+        // 增加浏览量 (总量更新)
         await db('cards').where('id', id).increment('view_count', 1)
+
+        // 记录每日浏览量 (基于当天日期)
+        // 注意由于时区问题，这里获取北京时间日期最稳妥
+        const dateObj = new Date()
+        const offsetMs = dateObj.getTimezoneOffset() * 60 * 1000
+        const localDate = new Date(dateObj.getTime() - offsetMs)
+        const todayStr = localDate.toISOString().split('T')[0]
+
+        await db('card_daily_views')
+            .insert({
+                card_id: id,
+                view_date: todayStr,
+                view_count: 1
+            })
+            .onConflict(['card_id', 'view_date'])
+            .merge({ view_count: db.raw('view_count + 1') })
+            .catch(err => console.error('更新每日浏览量失败:', err))
 
         // 如果已登录，查询是否已收藏
         let is_favorited = false

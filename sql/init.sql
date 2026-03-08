@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `gender` TINYINT DEFAULT 0 COMMENT '性别：0未知/1男/2女',
   `phone` VARCHAR(255) DEFAULT NULL COMMENT '手机号（加密存储）',
   `wechat_id` VARCHAR(255) DEFAULT NULL COMMENT '微信号（加密存储）',
+  `wechat_qrcode` VARCHAR(512) DEFAULT NULL COMMENT '微信二维码图片 URL',
   `school` VARCHAR(128) DEFAULT NULL COMMENT '学校',
   `major` VARCHAR(128) DEFAULT NULL COMMENT '专业',
   `grade` VARCHAR(32) DEFAULT NULL COMMENT '年级',
@@ -160,3 +161,22 @@ CREATE TABLE IF NOT EXISTS `search_hot` (
 
   UNIQUE KEY `uk_keyword` (`keyword`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='热搜词表';
+
+-- ----- 9. 每日浏览统计表 -----
+CREATE TABLE IF NOT EXISTS `card_daily_views` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `card_id` BIGINT UNSIGNED NOT NULL COMMENT '关联卡片',
+  `view_date` DATE NOT NULL COMMENT '浏览日期',
+  `view_count` INT DEFAULT 1 COMMENT '当日浏览次数',
+  UNIQUE KEY `uk_card_date` (`card_id`, `view_date`),
+  INDEX `idx_date` (`view_date`),
+  CONSTRAINT `fk_daily_views_card` FOREIGN KEY (`card_id`) REFERENCES `cards` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='卡片每日浏览统计表';
+
+-- ----- 10. 增量迁移：给已有 users 表补 wechat_qrcode 字段 -----
+-- （幂等：如果列已存在则跳过）
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'lingxue' AND TABLE_NAME = 'users' AND COLUMN_NAME = 'wechat_qrcode');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `lingxue`.`users` ADD COLUMN `wechat_qrcode` VARCHAR(512) DEFAULT NULL COMMENT \'微信二维码图片 URL\' AFTER `wechat_id`', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
