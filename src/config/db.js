@@ -16,11 +16,11 @@ const db = knex({
         enableKeepAlive: true
     },
     pool: {
-        min: 1,
-        max: 10,
+        min: 0,
+        max: 20,
         idleTimeoutMillis: 30000,
-        createTimeoutMillis: 30000,
-        acquireTimeoutMillis: 30000,
+        createTimeoutMillis: 60000,
+        acquireTimeoutMillis: 60000,
         propagateCreateError: false
     }
 })
